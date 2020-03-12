@@ -43,91 +43,86 @@ app.use(cors())
 
 const client = new StreamChat(process.env.API_KEY, process.env.API_SECRET);
 
-const channel = client.channel('messaging', 'chat-export', {});
+const channel = client.channel('messaging', 'gdpr-chat-export', {
+	name: 'GDPR Chat export',
+	created_by: {id: 'admin'}
+});
 
 app.post('/users/auth', async (req, res) => {
 
-    const {
-        username,
-        password
-    } = req.body;
+	const {username, password} = req.body;
 
-    if (username === undefined || username.length == 0) {
-        res.status(400).send({
-            status: false,
-            message: 'Please provide your username',
-        });
-        return;
-    }
+	if (username === undefined || username.length == 0) {
+		res.status(400).send({
+			status: false,
+			message: 'Please provide your username',
+		});
+		return;
+	}
 
-    if (password === undefined || password.length == 0) {
-        res.status(400).send({
-            status: false,
-            message: 'Please provide your password',
-        });
-        return;
-    }
+	if (password === undefined || password.length == 0) {
+		res.status(400).send({
+			status: false,
+			message: 'Please provide your password',
+		});
+		return;
+	}
 
-    let user = await User.findOne({
-            username: username.toLowerCase()
-        }
-    );
+	let user = await User.findOne({username: username.toLowerCase()});
 
-    if (!user) {
-        let user = await User.create({
-            username: username,
-            password: password,
-        });
+	if (!user) {
+		let user = await User.create({
+			username: username,
+			password: password,
+		});
 
-        user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']); // and remove data we don't need with the lodash omit
+		user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']); // and remove data we don't need with the lodash omit
 
-        const token = client.createToken(user._id.toString());
+		const token = client.createToken(user._id.toString());
 
-        await client.updateUsers([{
-            id: user._id,
-            role: 'channel_member',
-        }, ]);
+		await client.updateUser({id: user._id, name: username}, token);
 
-        await channel.addMembers([user._id]);
+		await channel.create()
 
-        delete user.password;
+		await channel.addMembers([user._id, 'admin']);
 
-        user.id = user._id
+		delete user.password;
 
-        res.json({
-            status: true,
-            user,
-            token
-        });
-        return
-    }
+		user.id = user._id
 
-    const match = await bcrypt.compare(password, user.password);
+		res.json({
+			status: true,
+			user,
+			token
+		});
+		return
+	}
 
-    if (!match) {
-        res.status(403);
-        res.json({message:'Password does not match', status: false})
-        return
-    }
+	const match = await bcrypt.compare(password, user.password);
 
-    // generate token using the unique database id
-    const token = client.createToken(user._id.toString());
+	if (!match) {
+		res.status(403);
+		res.json({message: 'Password does not match', status: false})
+		return
+	}
 
-    user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']);
+	const token = client.createToken(user._id.toString());
 
-    delete user.password;
-    
-    user.id = user._id
+	user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']);
 
-    res.json({
-        status:true,
-        user,
-        token
-    });
+	delete user.password;
+
+	user.id = user._id
+
+	res.json({
+		status: true,
+		user,
+		token
+	});
 
 });
 
-app.post("/users/export", async(req,res) => {
+app.post("/users/export", async (req, res) => {
 
 })
 
