@@ -120,6 +120,22 @@ app.post("/users/auth", async (req, res) => {
   });
 });
 
-app.post("/users/export", async (req, res) => {});
+app.post("/users/export", async (req, res) => {
+  const userID = req.body.user_id;
+
+  if (userID == "" || userID === undefined) {
+    res
+      .status(400)
+      .send({ status: false, message: "Please provide your user ID" });
+    return;
+  }
+
+  try {
+    const data = await client.exportUser(userID);
+    res.send({ status: true, message: "Data was successfully exported" });
+  } catch (err) {
+    res.send({ status: false, message : 'user not found'});
+  }
+});
 
 app.listen(port, () => console.log(`App listening on port ${port}!`));
