@@ -1,12 +1,12 @@
-const express = require('express');
-const StreamChat = require('stream-chat').StreamChat;
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const omit = require('lodash.omit');
-const bcrypt = require('bcryptjs');
-const cors = require('cors');
+const express = require("express");
+const StreamChat = require("stream-chat").StreamChat;
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+const omit = require("lodash.omit");
+const bcrypt = require("bcryptjs");
+const cors = require("cors");
 
-const User = require('./models');
+const User = require("./models");
 
 dotenv.config();
 
@@ -15,115 +15,111 @@ const port = process.env.PORT || 5200;
 mongoose.promise = global.Promise;
 
 mongoose.connect(process.env.MONGODB_URI, {
-	useNewUrlParser: true,
-	useUnifiedTopology: true,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 });
-mongoose.set('useCreateIndex', true);
-mongoose.set('useFindAndModify', false);
+mongoose.set("useCreateIndex", true);
+mongoose.set("useFindAndModify", false);
 
 const db = mongoose.connection;
 
-db.on('error', err => {
-	console.error(err);
+db.on("error", err => {
+  console.error(err);
 });
 
-db.on('disconnected', () => {
-	console.info('Database disconnected!');
+db.on("disconnected", () => {
+  console.info("Database disconnected!");
 });
 
-process.on('SIGINT', () => {
-	mongoose.connection.close(() => {
-		process.exit(0);
-	});
+process.on("SIGINT", () => {
+  mongoose.connection.close(() => {
+    process.exit(0);
+  });
 });
 
 const app = express();
 app.use(express.json());
-app.use(cors())
+app.use(cors());
 
 const client = new StreamChat(process.env.API_KEY, process.env.API_SECRET);
 
-const channel = client.channel('messaging', 'gdpr-chat-export', {
-	name: 'GDPR Chat export',
-	created_by: {id: 'admin'}
+const channel = client.channel("messaging", "gdpr-chat-export", {
+  name: "GDPR Chat export",
+  created_by: { id: "admin" }
 });
 
-app.post('/users/auth', async (req, res) => {
+app.post("/users/auth", async (req, res) => {
+  const { username, password } = req.body;
 
-	const {username, password} = req.body;
+  if (username === undefined || username.length == 0) {
+    res.status(400).send({
+      status: false,
+      message: "Please provide your username"
+    });
+    return;
+  }
 
-	if (username === undefined || username.length == 0) {
-		res.status(400).send({
-			status: false,
-			message: 'Please provide your username',
-		});
-		return;
-	}
+  if (password === undefined || password.length == 0) {
+    res.status(400).send({
+      status: false,
+      message: "Please provide your password"
+    });
+    return;
+  }
 
-	if (password === undefined || password.length == 0) {
-		res.status(400).send({
-			status: false,
-			message: 'Please provide your password',
-		});
-		return;
-	}
+  let user = await User.findOne({ username: username.toLowerCase() });
 
-	let user = await User.findOne({username: username.toLowerCase()});
+  if (!user) {
+    let user = await User.create({
+      username: username,
+      password: password
+    });
 
-	if (!user) {
-		let user = await User.create({
-			username: username,
-			password: password,
-		});
+    user = omit(user._doc, ["__v", "createdAt", "updatedAt"]); // and remove data we don't need with the lodash omit
 
-		user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']); // and remove data we don't need with the lodash omit
+    const token = client.createToken(user._id.toString());
 
-		const token = client.createToken(user._id.toString());
+    await client.updateUser({ id: user._id, name: username }, token);
 
-		await client.updateUser({id: user._id, name: username}, token);
+    await channel.create();
 
-		await channel.create()
+    await channel.addMembers([user._id, "admin"]);
 
-		await channel.addMembers([user._id, 'admin']);
+    delete user.password;
 
-		delete user.password;
+    user.id = user._id;
 
-		user.id = user._id
+    res.json({
+      status: true,
+      user,
+      token
+    });
+    return;
+  }
 
-		res.json({
-			status: true,
-			user,
-			token
-		});
-		return
-	}
+  const match = await bcrypt.compare(password, user.password);
 
-	const match = await bcrypt.compare(password, user.password);
+  if (!match) {
+    res.status(403);
+    res.json({ message: "Password does not match", status: false });
+    return;
+  }
 
-	if (!match) {
-		res.status(403);
-		res.json({message: 'Password does not match', status: false})
-		return
-	}
+  const token = client.createToken(user._id.toString());
 
-	const token = client.createToken(user._id.toString());
+  user = omit(user._doc, ["__v", "createdAt", "updatedAt"]);
 
-	user = omit(user._doc, ['__v', 'createdAt', 'updatedAt']);
+  delete user.password;
 
-	delete user.password;
+  user.id = user._id;
 
-	user.id = user._id
-
-	res.json({
-		status: true,
-		user,
-		token
-	});
-
+  res.json({
+    status: true,
+    user,
+    token
+  });
 });
 
-app.post("/users/export", async (req, res) => {
+app.post("/users/export", async (req, res) => {});
 
-})
-
-app.listen(port, () => console.log(`App listening on port ${port}!`))
+app.listen(port, () => console.log(`App listening on port ${port}!`));
