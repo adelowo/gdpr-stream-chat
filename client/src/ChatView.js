@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { useState, Component } from "react";
 import {
   Chat,
   MessageList,
@@ -9,6 +9,69 @@ import {
   ChannelList,
   withChannelContext
 } from "stream-chat-react";
+import axios from "axios";
+import Button from "react-bootstrap/Button";
+import Modal from "react-bootstrap/Modal";
+import InputGroup from "react-bootstrap/InputGroup";
+import FormControl from "react-bootstrap/FormControl";
+
+function GDPRExporter(props) {
+  const [show, setShow] = useState(false);
+  const [email, setEmail] = useState("");
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
+
+  return (
+    <div>
+      <Button variant="primary" onClick={handleShow}>
+        Export Data
+      </Button>
+
+      <Modal show={show} onHide={handleClose}>
+        <Modal.Header closeButton>
+          <Modal.Title>Modal heading</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <InputGroup className="mb-3">
+            <FormControl
+              placeholder="Recipient's email"
+              aria-label="Recipient's username"
+              aria-describedby="basic-addon2"
+              type="email"
+              onChange={setEmail}
+            />
+            <InputGroup.Append>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  axios
+                    .post("http://localhost:5200/users/export", {
+                      user_id: props.user,
+                      email: email
+                    })
+                    .then(res => {
+                      alert(res.data.message);
+                      handleClose();
+                    })
+                    .catch(err => {
+                      console.log(err);
+                      alert("Could not export data");
+                    });
+                }}
+              >
+                Export
+              </Button>
+            </InputGroup.Append>
+          </InputGroup>
+        </Modal.Body>
+        <Modal.Footer>
+          An email containing the exported data will be sent to you
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+}
 
 class MyChannelPreview extends Component {
   render() {
@@ -53,9 +116,7 @@ const CustomChannelHeader = withChannelContext(
           </div>
           <div className="str-chat__header-livestream-right">
             <div className="str-chat__header-livestream-right-button-wrapper">
-              <button className="export" onClick={() => alert("Oops")}>
-                Export data
-              </button>
+              <GDPRExporter user={this.props.client.user_id} />
             </div>
           </div>
         </div>

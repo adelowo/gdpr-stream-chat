@@ -1,3 +1,4 @@
+const fs = require("fs");
 const express = require("express");
 const StreamChat = require("stream-chat").StreamChat;
 const mongoose = require("mongoose");
@@ -123,6 +124,15 @@ app.post("/users/auth", async (req, res) => {
 app.post("/users/export", async (req, res) => {
   const userID = req.body.user_id;
 
+  const email = req.body.email;
+
+  if (email === undefined || email === "") {
+    res
+      .status(400)
+      .send({ status: true, message: "Please provide your email address" });
+    return;
+  }
+
   if (userID == "" || userID === undefined) {
     res
       .status(400)
@@ -132,9 +142,15 @@ app.post("/users/export", async (req, res) => {
 
   try {
     const data = await client.exportUser(userID);
-    res.send({ status: true, message: "Data was successfully exported" });
+
+
+    res.status(200).send({
+      status: true,
+      message: `Your exported data has been sent to your email address,${email}`
+    });
   } catch (err) {
-    res.send({ status: false, message : 'user not found'});
+    res.status(400);
+    res.send({ status: false, message: "user not found" });
   }
 });
 

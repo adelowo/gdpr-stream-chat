@@ -20,7 +20,7 @@ export default class Login extends Component {
           return;
         }
 
-        this.props.cb(res.data.user,res.data.token)
+        this.props.cb(res.data.user, res.data.token);
       })
       .catch(err => {
         console.error(err);
@@ -78,4 +78,3 @@ export default class Login extends Component {
     );
   }
 }
-
