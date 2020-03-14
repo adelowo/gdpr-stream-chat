@@ -39,7 +39,7 @@ function GDPRExporter(props) {
               aria-label="Recipient's username"
               aria-describedby="basic-addon2"
               type="email"
-              onChange={setEmail}
+              onChange={e => setEmail(e.target.value)}
             />
             <InputGroup.Append>
               <Button
@@ -55,7 +55,7 @@ function GDPRExporter(props) {
                       handleClose();
                     })
                     .catch(err => {
-                      console.log(err);
+                      console.error(err);
                       alert("Could not export data");
                     });
                 }}
@@ -116,7 +116,7 @@ const CustomChannelHeader = withChannelContext(
           </div>
           <div className="str-chat__header-livestream-right">
             <div className="str-chat__header-livestream-right-button-wrapper">
-              <GDPRExporter user={this.props.client.user_id} />
+              <GDPRExporter user={this.props.client.user.id} />
             </div>
           </div>
         </div>

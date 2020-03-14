@@ -6,10 +6,29 @@ const dotenv = require("dotenv");
 const omit = require("lodash.omit");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
-
+const nodemailer = require("nodemailer");
 const User = require("./models");
 
 dotenv.config();
+
+transport = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT),
+  secure: process.env.SMTP_ENABLE_TLS === "0" ? false : true,
+  auth: {
+    user: process.env.SMTP_USERNAME,
+    pass: process.env.SMTP_PASSWORD
+  }
+});
+
+transport.verify(function(error, success) {
+  if (error) {
+    console.error(error);
+    process.exit(1);
+  }
+
+  console.log("SMTP connection was successfully made");
+});
 
 const port = process.env.PORT || 5200;
 
@@ -143,14 +162,28 @@ app.post("/users/export", async (req, res) => {
   try {
     const data = await client.exportUser(userID);
 
-
     res.status(200).send({
       status: true,
       message: `Your exported data has been sent to your email address,${email}`
     });
+
+    transport
+      .sendMail({
+        from: process.env.SMTP_FROM_ADDRESS,
+        to: email,
+        subject: "Your exported data",
+        text: "Kindly find the exported data as an attachment",
+        html: "<p>Kindly find the exported data as an attachment</p>",
+        attachments: [
+          { filename: "data.json", content: Buffer.from(JSON.stringify(data)) }
+        ]
+      })
+      .catch(err => {
+        console.log("an error occurred while sending an error", err);
+      });
   } catch (err) {
-    res.status(400);
-    res.send({ status: false, message: "user not found" });
+    console.log(err);
+    res.status(400).send({ status: false, message: "user not found" });
   }
 });
 
