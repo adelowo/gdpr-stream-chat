@@ -164,7 +164,7 @@ app.post("/users/export", async (req, res) => {
 
     res.status(200).send({
       status: true,
-      message: `Your exported data has been sent to your email address,${email}`
+      message: `Your exported data has been sent to your email address, ${email}`
     });
 
     transport
